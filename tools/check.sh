@@ -35,8 +35,8 @@ case "$cmd" in
       exit 64
     fi
     extra=() ;;
-  fast|full|fmt|doc|deny) [ "$#" -eq 0 ] || usage ;;
-  clippy|test|msrv|miri|ratchet) ;;
+  fast|full|fmt|deny) [ "$#" -eq 0 ] || usage ;;
+  clippy|test|doc|msrv|miri|ratchet) ;;
   *) usage ;;
 esac
 

@@ -366,6 +366,11 @@ if exe == "cargo" and "clippy" in args: sys.exit(int(os.environ.get("CLIPPY_STAT
         self.assertTrue(any("--features=probe" in c for c in docs), docs)
         self.assertTrue(any(all("--features" not in a for a in c) for c in docs), docs)
 
+        # Direct reusable-CI invocation `check.sh doc -- --all-features` must be accepted
+        res_direct = self.run_check("doc", "--", "--all-features")
+        self.assertEqual(res_direct.returncode, 0, res_direct.stderr)
+        self.assertTrue(any(c[:2] == ["cargo", "doc"] and "--all-features" in c for c in self.calls), self.calls)
+
 
 if __name__ == "__main__":
     unittest.main()

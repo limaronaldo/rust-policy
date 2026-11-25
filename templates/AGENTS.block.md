@@ -1,4 +1,4 @@
-<!-- BEGIN rust-policy 1.3.1 (managed by rust-policy; edits inside this block fail CI) -->
+<!-- BEGIN rust-policy 1.3.2 (managed by rust-policy; edits inside this block fail CI) -->
 # Rust policy for agents and humans
 
 This repository adopts the Rust Super Guide through rust-policy. These rules summarize human-authored guidance (`docs/rust-policy/guide.md`, section 15) and apply to every change, delegated task and review.

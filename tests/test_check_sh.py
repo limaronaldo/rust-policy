@@ -24,6 +24,7 @@ def check(repo, step, *args, color="always", extra_env=None):
     # CI used to force colors; check.sh must work whatever the caller sets.
     env = dict(os.environ, CARGO_TARGET_DIR=str(TARGET), CARGO_TERM_COLOR=color)
     env.pop("RUSTFLAGS", None)
+    env.pop("GITHUB_ACTIONS", None)
     if extra_env:
         env.update(extra_env)
     r = subprocess.run([str(repo / ".rust-policy/check.sh"), step, *(["--", *args] if args else [])], cwd=repo,

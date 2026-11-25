@@ -1,4 +1,4 @@
-<!-- BEGIN rust-policy 1.3.1 (managed by rust-policy; edits inside this block fail CI) -->
+<!-- BEGIN rust-policy 1.3.2 (managed by rust-policy; edits inside this block fail CI) -->
 @AGENTS.md
 @rust-policy.toml
 

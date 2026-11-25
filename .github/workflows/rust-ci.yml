@@ -17,18 +17,18 @@ env:
   CARGO_NET_RETRY: "10"
   RUST_BACKTRACE: "1"
   # BEGIN managed sums (scripts/release.py writes this block; do not edit by hand)
-  POLICY_VERSION: "1.3.1"
+  POLICY_VERSION: "1.3.2"
   POLICY_REPO: "limaronaldo/rust-policy"
   POLICY_FILE_SUMS: |
-    59c4dbd0f365c2daab215b48baaf179473c4c5ca01387ef66223ff9e4e8f146a  .rust-policy/check.sh
+    e2837e7b289b3ff5e4f386ebacbe4a587eca50209790a572d9d4854ae53735c9  .rust-policy/check.sh
     f234951199639b62bbacb35b14dd2b177b07b81d2d500d1aa5acae234135a04e  .rust-policy/policy.py
     96f662fa634cc022e0a10bd06495e78ee65f645cac22a2699ef52bdad779f3a5  docs/rust-policy/guide.md
     3995cf67c5b9b34c81196fb3bfc3107c48a30a26423766bac7ba05794b2da520  .claude/agents/rust-reviewer.md
     9c2cb660d9b6220967255e54a4aba34e77e5b4fe7f87619162cc4d447a99107c  .codex/agents/rust-reviewer.toml
-    7a5810b1bc3cef805a62d810cd16bff18d81a6969240acc5f6bedee1aca32dae  docs/rust-policy/AGENTS.rust.md
+    afb2e56e01f3c23d230965df49867622e8977a8bdb9b57c4ac3be40a86659f62  docs/rust-policy/AGENTS.rust.md
   POLICY_BLOCK_SUMS: |
-    7a5810b1bc3cef805a62d810cd16bff18d81a6969240acc5f6bedee1aca32dae  AGENTS.md
-    9cd1ade9387abc4e6f98779ecc8f749327b35e3e8bf2f25a74a1514da90a49e0  CLAUDE.md
+    afb2e56e01f3c23d230965df49867622e8977a8bdb9b57c4ac3be40a86659f62  AGENTS.md
+    44da30f5e52e196c85555059119f62663a8eeaa46b54388ac9efc215b2d2b07b  CLAUDE.md
   POLICY_CALLER_SUM: "7127d64cc0a1851fcb4d178b4869885ead30939f676488f3ea8a3ebc14994ab8"
   # END managed sums
 
