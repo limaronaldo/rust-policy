@@ -1,0 +1,4 @@
+# Guide section 3: stable rustfmt defaults for edition 2024. Nightly-only options fail CI.
+edition = "{edition}"
+style_edition = "{edition}"
+max_width = 100

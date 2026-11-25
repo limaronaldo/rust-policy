@@ -1,0 +1,403 @@
+# rust-ci.yml: the reusable workflow that every rust-policy consumer calls, pinned by full commit SHA.
+# Required check: "rust-policy / gate" (the caller's job id, then this file's job name "gate").
+#
+# The tools run from the consumer's .rust-policy/ directory, but every job that runs them first
+# compares them with the sums below. GitHub fetches this file from the pinned commit, so a pull
+# request cannot change these sums. The policy repository can stay private: no extra token and no
+# second checkout are needed, only the Actions access setting described in docs/org-settings.md.
+name: rust-ci
+
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_NET_RETRY: "10"
+  RUST_BACKTRACE: "1"
+  # BEGIN managed sums (scripts/release.py writes this block; do not edit by hand)
+  POLICY_VERSION: "1.3.1"
+  POLICY_REPO: "limaronaldo/rust-policy"
+  POLICY_FILE_SUMS: |
+    59c4dbd0f365c2daab215b48baaf179473c4c5ca01387ef66223ff9e4e8f146a  .rust-policy/check.sh
+    f234951199639b62bbacb35b14dd2b177b07b81d2d500d1aa5acae234135a04e  .rust-policy/policy.py
+    96f662fa634cc022e0a10bd06495e78ee65f645cac22a2699ef52bdad779f3a5  docs/rust-policy/guide.md
+    3995cf67c5b9b34c81196fb3bfc3107c48a30a26423766bac7ba05794b2da520  .claude/agents/rust-reviewer.md
+    9c2cb660d9b6220967255e54a4aba34e77e5b4fe7f87619162cc4d447a99107c  .codex/agents/rust-reviewer.toml
+    7a5810b1bc3cef805a62d810cd16bff18d81a6969240acc5f6bedee1aca32dae  docs/rust-policy/AGENTS.rust.md
+  POLICY_BLOCK_SUMS: |
+    7a5810b1bc3cef805a62d810cd16bff18d81a6969240acc5f6bedee1aca32dae  AGENTS.md
+    9cd1ade9387abc4e6f98779ecc8f749327b35e3e8bf2f25a74a1514da90a49e0  CLAUDE.md
+  POLICY_CALLER_SUM: "7127d64cc0a1851fcb4d178b4869885ead30939f676488f3ea8a3ebc14994ab8"
+  # END managed sums
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      toolchain: ${{ steps.plan.outputs.toolchain }}
+      msrv: ${{ steps.plan.outputs.msrv }}
+      nightly: ${{ steps.plan.outputs.nightly }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      msrv_matrix: ${{ steps.plan.outputs.msrv_matrix }}
+      run_fmt: ${{ steps.plan.outputs.run_fmt }}
+      run_clippy: ${{ steps.plan.outputs.run_clippy }}
+      run_test: ${{ steps.plan.outputs.run_test }}
+      run_doc: ${{ steps.plan.outputs.run_doc }}
+      run_msrv: ${{ steps.plan.outputs.run_msrv }}
+      run_deny: ${{ steps.plan.outputs.run_deny }}
+      run_ratchet: ${{ steps.plan.outputs.run_ratchet }}
+      run_miri: ${{ steps.plan.outputs.run_miri }}
+      miri_args: ${{ steps.plan.outputs.miri_args }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Verify managed blocks and caller
+        run: python3 -I .rust-policy/policy.py verify
+      - id: plan
+        name: Plan from rust-policy.toml
+        run: python3 -I .rust-policy/policy.py plan
+
+  conformance:
+    name: conformance
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # event base SHAs must exist, including the merge-group base
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - name: Conformance checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          case "$EVENT_NAME" in
+            pull_request|merge_group|push) base="$BASE_SHA" ;;
+            schedule|workflow_dispatch)
+              base="$(git rev-parse --verify "refs/remotes/origin/$DEFAULT_BRANCH^{commit}")" ;;
+            *) echo "unsupported conformance event: $EVENT_NAME" >&2; exit 1 ;;
+          esac
+          if [[ ! "$base" =~ ^[0-9a-f]{40}$ ]] || [[ "$base" == 0000000000000000000000000000000000000000 ]] \
+            || ! git cat-file -e "$base^{commit}"; then
+            echo "trusted conformance base is missing or unavailable: $base" >&2
+            exit 1
+          fi
+          python3 -I .rust-policy/policy.py check --base "$base"
+
+  fmt:
+    name: fmt
+    needs: plan
+    if: ${{ needs.plan.outputs.run_fmt == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt --no-self-update
+      - run: bash .rust-policy/check.sh fmt
+
+  clippy:
+    name: clippy (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_clippy == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: clippy-${{ matrix.id }}-${{ hashFiles('rust-policy.toml') }}
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Clippy
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh clippy -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  test:
+    name: test (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_test == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: test-${{ matrix.id }}-${{ hashFiles('rust-policy.toml') }}
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Tests and doctests
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh test -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  doc:
+    name: doc (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_doc == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: doc-${{ matrix.id }}-${{ hashFiles('rust-policy.toml') }}
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Rustdoc
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh doc -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  msrv:
+    name: msrv (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_msrv == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.msrv }}
+      MSRV: ${{ needs.plan.outputs.msrv }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.msrv_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install MSRV toolchain
+        run: rustup toolchain install "$MSRV" --profile minimal --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: msrv-${{ matrix.id }}-${{ hashFiles('rust-policy.toml') }}
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Build on the MSRV
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh msrv -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  deny:
+    name: deny
+    needs: plan
+    if: ${{ needs.plan.outputs.run_deny == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-deny@0.20.2
+      - name: Advisories, licenses, bans and sources
+        run: bash .rust-policy/check.sh deny
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  ratchet:
+    name: ratchet (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_ratchet == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ratchet-${{ matrix.id }}-${{ hashFiles('rust-policy.toml') }}
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+      - name: Ratcheted lints may only go down, per file
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh ratchet -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  miri:
+    name: miri (${{ matrix.id }})
+    needs: plan
+    if: ${{ needs.plan.outputs.run_miri == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      RUSTUP_TOOLCHAIN: ${{ needs.plan.outputs.nightly }}
+      NIGHTLY: ${{ needs.plan.outputs.nightly }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.msrv_matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify managed files
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+      - name: Install pinned nightly with Miri
+        run: rustup toolchain install "$NIGHTLY" --profile minimal --component miri,rust-src --no-self-update
+      - name: Miri on the crates allowed to use unsafe, per feature set
+        env:
+          FEATURE_ARGS: ${{ matrix.args }}
+        run: |
+          read -r -a feature_args <<<"$FEATURE_ARGS"
+          bash .rust-policy/check.sh miri -- ${feature_args[@]+"${feature_args[@]}"}
+      - name: Re-verify managed files after execution
+        if: ${{ always() }}
+        run: printf '%s' "$POLICY_FILE_SUMS" | sha256sum --check --strict --ignore-missing
+
+  # The only check a ruleset requires. It runs even when other jobs fail or are skipped, because
+  # GitHub counts a skipped required check as passing and skips every job whose needs failed.
+  gate:
+    name: gate
+    if: ${{ always() }}
+    needs: [plan, conformance, fmt, clippy, test, doc, msrv, deny, ratchet, miri]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every job must succeed
+        shell: python3 -I {0}
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          import json, os, sys
+          needs = json.loads(os.environ["NEEDS"])
+          plan = needs.get("plan", {})
+          planned_off = set()   # jobs the plan turned off (adoption.checks, no unsafe crate, no ratchet)
+          if plan.get("result") == "success":
+              outputs = plan.get("outputs", {})
+              optional = ("fmt", "clippy", "test", "doc", "msrv", "deny", "ratchet", "miri")
+              planned_off = {j for j in optional if outputs.get(f"run_{j}") == "false"}
+          rows, blocking = [], []
+          for job in sorted(needs):
+              result = needs[job].get("result")
+              ok = result == "success" or (result == "skipped" and job in planned_off)
+              rows.append(f"| {job} | {result} | {'ok' if ok else 'BLOCKING'} |")
+              if not ok:
+                  blocking.append(f"{job}={result}")
+          table = "\n".join(["| job | result | verdict |", "| --- | --- | --- |", *rows])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(table + "\n")
+          print(table)
+          if blocking:
+              print("gate failed: " + ", ".join(blocking), file=sys.stderr)
+              sys.exit(1)

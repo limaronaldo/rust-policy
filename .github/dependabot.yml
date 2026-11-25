@@ -1,0 +1,7 @@
+# Keeps the pinned action SHAs of this repository current. Consumers get them through releases.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

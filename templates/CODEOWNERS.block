@@ -1,0 +1,24 @@
+# BEGIN rust-policy (managed by rust-policy; keep this block last: the last matching line wins)
+AGENTS.md              {owners}
+CLAUDE.md              {owners}
+AGENTS.override.md     {owners}
+/opencode.json         {owners}
+/rust-policy.toml      {owners}
+rust-toolchain.toml    {owners}
+rustfmt.toml           {owners}
+.rustfmt.toml          {owners}
+clippy.toml            {owners}
+.clippy.toml           {owners}
+/deny.toml             {owners}
+.cargo/                {owners}
+/.github/              {owners}
+/.claude/              {owners}
+/.codex/               {owners}
+/.opencode/            {owners}
+/.rust-policy/         {owners}
+/docs/rust-policy/     {owners}
+/CODEOWNERS            {owners}
+/docs/CODEOWNERS       {owners}
+/.gitattributes        {owners}
+build.rs               {owners}
+# END rust-policy

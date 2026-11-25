@@ -1,0 +1,9 @@
+# BEGIN rust-policy (managed: CI compares these files byte for byte)
+/.rust-policy/** text eol=lf
+/docs/rust-policy/guide.md text eol=lf
+/AGENTS.md text eol=lf
+/CLAUDE.md text eol=lf
+/.github/workflows/rust-policy.yml text eol=lf
+/.claude/agents/rust-reviewer.md text eol=lf
+/.codex/agents/rust-reviewer.toml text eol=lf
+# END rust-policy

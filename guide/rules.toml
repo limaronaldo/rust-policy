@@ -1,0 +1,212 @@
+# Stable ids for the MUST matrix of the Rust Super Guide (guide/rust-guide.md, version 1.3.0).
+# enforcement: ci (a required job fails on a violation), review (reviewers check it; no tool does),
+#   both (a tool catches part of it, review covers the rest), process (audited outside the code).
+# exception: false means the exception register refuses entries for this rule; partial means only the
+#   part the guide names (for example, no exception for `# Safety` in M11).
+# checks: rust-policy jobs (fmt, clippy, test, doc, msrv, deny, miri) and conformance checks (Pnn).
+
+guide_version = "1.3.0"
+
+[M01]
+title = "Formatting checked in CI"
+enforcement = "ci"
+exception = true
+checks = ["fmt"]
+
+[M02]
+title = "Clippy clean in every supported configuration"
+enforcement = "ci"
+exception = true
+checks = ["clippy"]
+
+[M03]
+title = "Local suppressions explained"
+enforcement = "ci"
+exception = false
+checks = ["clippy"]
+
+[M04]
+title = "Toolchain, MSRV and feature matrix defined"
+enforcement = "ci"
+exception = false
+checks = ["msrv", "P06"]
+
+[M05]
+title = "Lint names valid for the lint toolchain"
+enforcement = "ci"
+exception = false
+checks = ["clippy"]
+
+[M06]
+title = "`missing_docs` in libraries"
+enforcement = "ci"
+exception = true
+checks = ["clippy", "P08"]
+
+[M07]
+title = "Invariants preserved on every safe path"
+enforcement = "review"
+exception = false
+checks = []
+
+[M08]
+title = "Equality, hashing and ordering consistent"
+enforcement = "review"
+exception = false
+checks = []
+
+[M09]
+title = "SemVer changes reviewed"
+enforcement = "review"
+exception = true
+checks = []
+
+[M10]
+title = "No panics as routine error propagation"
+enforcement = "review"
+exception = true
+checks = []
+
+[M11]
+title = "`# Errors`, `# Panics`, `# Safety` documented"
+enforcement = "both"
+exception = "partial"
+checks = ["clippy"]
+
+[M12]
+title = "`unsafe` justified; performance claims measured"
+enforcement = "review"
+exception = false
+checks = []
+
+[M13]
+title = "Caller obligations exposed as `unsafe fn` or `unsafe trait`"
+enforcement = "review"
+exception = false
+checks = ["miri"]
+
+[M14]
+title = "`// SAFETY:` on unsafe blocks and `unsafe impl`"
+enforcement = "both"
+exception = false
+checks = ["clippy"]
+
+[M15]
+title = "`unsafe_op_in_unsafe_fn` denied"
+enforcement = "ci"
+exception = false
+checks = ["clippy", "P04"]
+
+[M16]
+title = "Full raw-slice contract"
+enforcement = "review"
+exception = false
+checks = ["miri"]
+
+[M17]
+title = "Miri on novel unsafe abstractions"
+enforcement = "ci"
+exception = true
+checks = ["miri"]
+
+[M18]
+title = "FFI layout, validity, ownership and unwind policy"
+enforcement = "review"
+exception = false
+checks = []
+
+[M19]
+title = "`#[unsafe(no_mangle)]` and `unsafe extern` blocks"
+enforcement = "ci"
+exception = false
+checks = ["clippy"]
+
+[M20]
+title = "No reliance on poisoning for memory safety"
+enforcement = "review"
+exception = false
+checks = []
+
+[M21]
+title = "No blocking or unbounded work on executor workers"
+enforcement = "review"
+exception = false
+checks = []
+
+[M22]
+title = "Memory safety when a future is dropped"
+enforcement = "review"
+exception = false
+checks = []
+
+[M23]
+title = "Remote operations keep an id and a reconciliation path"
+enforcement = "review"
+exception = "partial"
+checks = []
+
+[M24]
+title = "`$crate::` paths in exported `macro_rules!`"
+enforcement = "review"
+exception = false
+checks = []
+
+[M25]
+title = "Test helpers out of the production API"
+enforcement = "review"
+exception = false
+checks = []
+
+[M26]
+title = "Doctests executed"
+enforcement = "ci"
+exception = true
+checks = ["test"]
+
+[M27]
+title = "Overflow and shift behavior explicit"
+enforcement = "review"
+exception = true
+checks = []
+
+[M28]
+title = "Lockfile committed, builds `--locked`"
+enforcement = "ci"
+exception = false
+checks = ["P14", "clippy", "test"]
+
+[M29]
+title = "New dependencies reviewed; advisories checked"
+enforcement = "both"
+exception = true
+checks = ["deny", "P11"]
+
+[M30]
+title = "Unstable features justified"
+enforcement = "ci"
+exception = true
+checks = ["clippy"]
+
+[M31]
+title = "Automated fixes reviewed"
+enforcement = "review"
+exception = false
+checks = []
+
+[M32]
+title = "Secret copies minimized; erasure reviewed"
+enforcement = "review"
+exception = false
+checks = []
+
+[M33]
+title = "Critical systems: standard, revision and evidence identified"
+enforcement = "process"
+exception = true
+checks = []
+
+[M34]
+title = "Soundness-critical code and safety prose verified by a human domain owner"
+enforcement = "both"
+exception = false
+checks = ["clippy", "miri", "P16"]

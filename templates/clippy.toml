@@ -1,0 +1,11 @@
+# clippy.toml: project-owned Clippy configuration at the repository root (P06/P16).
+# Prefer turning recurring review findings into deterministic Clippy rules rather than relying on
+# LLM review prompts (guide section 15).
+#
+# Examples (enable `clippy::disallowed_methods` / `clippy::disallowed_types` in [workspace.lints.clippy]):
+# disallowed-methods = [
+#   { path = "std::process::Command::new", reason = "use the project's audited command wrapper" },
+# ]
+# disallowed-types = [
+#   { path = "std::sync::Mutex", reason = "use the project's chosen lock wrapper with explicit ordering" },
+# ]

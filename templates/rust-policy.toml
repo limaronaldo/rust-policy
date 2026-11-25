@@ -1,0 +1,42 @@
+# rust-policy.toml: this repository's Rust profile. Project-owned; changes need a policy owner review.
+# Read by .rust-policy/policy.py (CI plan and conformance) and by agents before they edit code.
+schema = 1
+
+[policy]
+owners = ["{owners}"]   # code owners of the policy surface; CODEOWNERS must name exactly these (P16)
+# unsafe_owners = ["@org/rust-safety-owners"]  # optional: domain owners required by P16 for unsafe_allowed and critical crates (M34)
+
+[adoption]
+# ci: "reusable" runs the pinned rust-ci.yml of the policy repository; "standalone" means this
+# repository's own CI runs `.rust-policy/check.sh ci --base REF` (and never goes back from reusable).
+# agents: "block" manages a block in AGENTS.md and CLAUDE.md; "external" leaves them to the
+# project and ships docs/rust-policy/AGENTS.rust.md for its own read order.
+# visibility: "internal" (default) or "public" (OSS posture: enforces Human-owned PR template via P12 and catch-all CODEOWNERS warning via P16).
+# checks: what the gate enforces now. The list may only grow (P02); conformance always runs.
+{adoption}
+
+[toolchain]
+stable = "{stable}"    # build, lint and format toolchain; must equal rust-toolchain.toml; never lowered
+msrv = "{msrv}"        # must equal rust-version in every manifest; CI checks the build on it
+edition = "{edition}"  # must equal edition in every manifest and in rustfmt.toml
+{nightly_line}
+
+[crates]
+# Library crates (paths): public API rules apply and the crate root carries #![warn(missing_docs)].
+libraries = {libraries}
+# Crates allowed to contain unsafe code (paths). Every other crate root carries #![forbid(unsafe_code)],
+# and CI runs Miri on these crates with the nightly above.
+unsafe_allowed = {unsafe_allowed}
+# critical = ["crates/crypto"]  # optional: additional soundness-critical crates covered by policy.unsafe_owners (P16/M34)
+
+# Extra compiler flags for every check, audited here because .cargo/config.toml rustflags are ignored.
+# Accepted: --cfg=name, -Ctarget-cpu=x, -Ctarget-feature=+x.
+# [build]
+# rustflags = ["--cfg=tokio_unstable"]
+
+# One clippy, test, MSRV and Miri job per feature set. args accepts only --no-default-features,
+# --all-features and --features=a,b. os accepts ubuntu-24.04 (default) and ubuntu-24.04-arm.
+[[feature_sets]]
+id = "default"
+args = ""
+{all_features}

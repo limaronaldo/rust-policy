@@ -1,0 +1,18 @@
+# Exception register (docs/rust-policy/exceptions.toml). Conformance P09 to P11 read it.
+# Every entry is approved in a pull request reviewed by a policy owner and expires within 180 days.
+# Rules without an exception path in the guide's MUST table are refused (see guide/rules.toml).
+#
+# [[exception]]
+# id = "EXC-0001"
+# kind = "lint"            # lint | lint-config | deny-ignore | cargo-config | workflow | manifest | guide
+# rule = "M02"             # MUST id from the guide (M01..M34), or P05 / P15 / P17 / P19 for cargo-config / workflow / manifest / guide (#[ignore] growth)
+# lint = "clippy::too_many_arguments"   # kinds lint and lint-config only
+# scope = "crates/ffi/src/lib.rs"       # path, crate, config key (cargo-config), workflow file (workflow) or manifest key (manifest)
+# reason = "The C header fixes this signature"
+# approved_in = "https://github.com/ORG/REPO/pull/42"
+# created = 2026-11-02
+# expires = 2027-01-31
+#
+# Cite the id where the deviation lives:
+#   #![expect(clippy::too_many_arguments, reason = "EXC-0001: the C header fixes this signature")]
+#   ignore = [{ id = "RUSTSEC-2026-0001", reason = "EXC-0002: not reachable, see the PR" }]
